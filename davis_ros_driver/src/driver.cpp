@@ -51,6 +51,7 @@ DavisRosDriver::DavisRosDriver(ros::NodeHandle & nh, ros::NodeHandle nh_private)
   if (ns == "/")
     ns = "/dvs";
 
+  //发布一系列话题
   event_array_pub_ = nh_.advertise<dvs_msgs::EventArray>(ns + "/events", 10);
   camera_info_pub_ = nh_.advertise<sensor_msgs::CameraInfo>(ns + "/camera_info", 1);
   imu_pub_ = nh_.advertise<sensor_msgs::Imu>(ns + "/imu", 10);
@@ -71,15 +72,15 @@ DavisRosDriver::DavisRosDriver(ros::NodeHandle & nh, ros::NodeHandle nh_private)
   // It is important that the dynamic reconfigure callback is set before caerConnect().
   // The dynamic reconfigure callback will be called directly when registered,
   // which will initialize properly current_config_
-  dynamic_reconfigure_callback_ = boost::bind(&DavisRosDriver::callback, this, _1, _2);
+  dynamic_reconfigure_callback_ = boost::bind(&DavisRosDriver::callback, this, _1, _2); //读入一系列参数
   server_.reset(new dynamic_reconfigure::Server<davis_ros_driver::DAVIS_ROS_DriverConfig>(config_mutex, nh_private));
   server_->setCallback(dynamic_reconfigure_callback_);
 
-  caerConnect();
-  current_config_.streaming_rate = 30;
-  delta_ = boost::posix_time::microseconds(long(1e6/current_config_.streaming_rate));
+  caerConnect();  //该函数会输出传感器的数据
+  current_config_.streaming_rate = 30;  //当前的频率参数
+  delta_ = boost::posix_time::microseconds(long(1e6/current_config_.streaming_rate)); //时间间隔=(1e6 us) / 频率，故此单元为us
 
-  imu_calibration_sub_ = nh_.subscribe((ns + "/calibrate_imu").c_str(), 1, &DavisRosDriver::imuCalibrationCallback, this);
+  imu_calibration_sub_ = nh_.subscribe((ns + "/calibrate_imu").c_str(), 1, &DavisRosDriver::imuCalibrationCallback, this);  //订阅IMU校准的话题
   snapshot_sub_ = nh_.subscribe((ns + "/trigger_snapshot").c_str(), 1, &DavisRosDriver::snapshotCallback, this);
 
   // start timer to reset timestamps for synchronization
@@ -118,7 +119,7 @@ void DavisRosDriver::caerConnect()
 
   // start driver
   bool device_is_running = false;
-  while (!device_is_running)
+  while (!device_is_running)  //当设备没有运行
   {
     const char* serial_number_restrict = (device_id_ == "") ? NULL : device_id_.c_str();
 
@@ -150,7 +151,7 @@ void DavisRosDriver::caerConnect()
 
   ROS_INFO("%s --- ID: %d, Master: %d, DVS X: %d, DVS Y: %d, Logic: %d.\n", davis_info_.deviceString,
            davis_info_.deviceID, davis_info_.deviceIsMaster, davis_info_.dvsSizeX, davis_info_.dvsSizeY,
-           davis_info_.firmwareVersion);
+           davis_info_.firmwareVersion);  //获取设备信息并打印
 
   if (master_ && !davis_info_.deviceIsMaster)
   {
@@ -159,7 +160,7 @@ void DavisRosDriver::caerConnect()
 
   // Send the default configuration before using the device.
   // No configuration is sent automatically!
-  caerDeviceSendDefaultConfig(davis_handle_);
+  caerDeviceSendDefaultConfig(davis_handle_); //发送默认配置
 
   // In case autoexposure is enabled, initialize the exposure time with the exposure value
   // from the parameter server
@@ -178,7 +179,10 @@ void DavisRosDriver::caerConnect()
 
   // spawn threads
   running_ = true;
+  
+  //此处多线程实现改变参数
   parameter_thread_ = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&DavisRosDriver::changeDvsParameters, this)));
+  //多线程实现读取传感器数据
   readout_thread_ = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&DavisRosDriver::readout, this)));
 
   // wait for driver to be ready
@@ -631,9 +635,9 @@ void DavisRosDriver::readout()
     //std::vector<dvs::Event> events;
 
     caerDeviceConfigSet(davis_handle_, CAER_HOST_CONFIG_DATAEXCHANGE, CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true);
-    caerDeviceDataStart(davis_handle_, NULL, NULL, NULL, &DavisRosDriver::onDisconnectUSB, this);
+    caerDeviceDataStart(davis_handle_, NULL, NULL, NULL, &DavisRosDriver::onDisconnectUSB, this); //每次check一下，查看usb是否断开
 
-    boost::posix_time::ptime next_send_time = boost::posix_time::microsec_clock::local_time();
+    boost::posix_time::ptime next_send_time = boost::posix_time::microsec_clock::local_time();  //获取当前时间
 
     dvs_msgs::EventArrayPtr event_array_msg;
 
@@ -660,9 +664,9 @@ void DavisRosDriver::readout()
                 const int type = caerEventPacketHeaderGetEventType(packetHeader);
 
                 // Packet 0 is always the special events packet for DVS128, while packet is the polarity events packet.
-                if (type == POLARITY_EVENT)
+                if (type == POLARITY_EVENT) //如果是事件类型，就发布事件
                 {
-                    if (!event_array_msg)
+                    if (!event_array_msg) //如果没有事件消息，就创建
                     {
                         event_array_msg = dvs_msgs::EventArrayPtr(new dvs_msgs::EventArray());
                         event_array_msg->height = davis_info_.dvsSizeY;
@@ -672,6 +676,7 @@ void DavisRosDriver::readout()
                     caerPolarityEventPacket polarity = (caerPolarityEventPacket) packetHeader;
 
                     const int numEvents = caerEventPacketHeaderGetEventNumber(packetHeader);
+                    // ROS_INFO("SDSDS");
                     for (int j = 0; j < numEvents; j++)
                     {
                         // Get full timestamp and addresses of first event.
@@ -684,7 +689,7 @@ void DavisRosDriver::readout()
                                 + ros::Duration().fromNSec(caerPolarityEventGetTimestamp64(event, polarity) * 1000);
                         e.polarity = caerPolarityEventGetPolarity(event);
 
-                        if(j == 0)
+                        if(j == 0)  //j=0表明为第一个事件，故将时间戳赋值给msg_header
                         {
                             event_array_msg->header.stamp = e.ts;
                         }
@@ -693,23 +698,26 @@ void DavisRosDriver::readout()
                     }
 
                     // throttle event messages
-                    if (boost::posix_time::microsec_clock::local_time() > next_send_time ||
-                            current_config_.streaming_rate == 0 ||
-                            (current_config_.max_events != 0 && event_array_msg->events.size() > current_config_.max_events)
+                    //掐死事件消息
+                    if (boost::posix_time::microsec_clock::local_time() > next_send_time ||   //如果当前时间大于下一次发布到时间，就发布
+                            current_config_.streaming_rate == 0 ||    //如果发布事件频率为0,则表明有事件就发布
+                            (current_config_.max_events != 0 && event_array_msg->events.size() > current_config_.max_events)    //如果事件数量大于最大事件数量（若为0就不限），那就发布
                             )
                     {
-                        event_array_pub_.publish(event_array_msg);
+                        event_array_pub_.publish(event_array_msg);  //发布事件
 
-                        if (current_config_.streaming_rate > 0)
+                        if (current_config_.streaming_rate > 0)   //若发布频率大于0,就更新下一次发布的时间
                         {
                             next_send_time += delta_;
                         }
-                        if (current_config_.max_events != 0 && event_array_msg->events.size() > current_config_.max_events)
+                        if (current_config_.max_events != 0 && event_array_msg->events.size() > current_config_.max_events) //如果时间数量大于最大事件数量，就更新下一次发布的时间
                         {
                             next_send_time = boost::posix_time::microsec_clock::local_time() + delta_;
                         }
 
-                        event_array_msg.reset();
+                      //理论上说，如果发布频率为0,那么有事件就发布，就不会更新下一次发布的时间，即一直发布事件，直到事件数量大于最大事件数量，然后才更新下一次发布到时间
+
+                        event_array_msg.reset();  //重置事件消息
                     }
 
                     if (camera_info_manager_->isCalibrated())
@@ -718,7 +726,7 @@ void DavisRosDriver::readout()
                         camera_info_pub_.publish(camera_info_msg);
                     }
                 }
-                else if (type == IMU6_EVENT)
+                else if (type == IMU6_EVENT)  //如果是IMU类型，则发布imu
                 {
                     caerIMU6EventPacket imu = (caerIMU6EventPacket) packetHeader;
 
@@ -774,24 +782,34 @@ void DavisRosDriver::readout()
                         imu_pub_.publish(msg);
                     }
                 }
-                else if (type == FRAME_EVENT)
+                else if (type == FRAME_EVENT)   //如果是frame，则发布frame
                 {
                     caerFrameEventPacket frame = (caerFrameEventPacket) packetHeader;
                     caerFrameEvent event = caerFrameEventPacketGetEvent(frame, 0);
 
+                    //可能固定的图像位置
                     uint16_t* image = caerFrameEventGetPixelArrayUnsafe(event);
 
                     sensor_msgs::Image msg;
                     
                     // get image metadata
                     caer_frame_event_color_channels frame_channels = caerFrameEventGetChannelNumber(event);
-                    const int32_t frame_width = caerFrameEventGetLengthX(event);
-                    const int32_t frame_height = caerFrameEventGetLengthY(event);
-                    
+                    // const int32_t frame_width = caerFrameEventGetLengthX(event);
+                    // const int32_t frame_height = caerFrameEventGetLengthY(event);
+                    // const int32_t frame_width = 346;
+                    // const int32_t frame_height = 260;
+                    //通过开源VIO算法ultimate slam和VINS-Mono测试，发现该驱动存在图像长宽不稳定的情况，导致算法崩掉。
+                    //因此，需要在vio算法或事件相机驱动中修改相关代码，保证图像大小固定不变
+                    //这里用的是DAVIS346，因此图像长为346，宽为260,修改如下：（可以参考line 672, 673）
+                    const int32_t frame_width = davis_info_.dvsSizeX;
+                    const int32_t frame_height = davis_info_.dvsSizeY;           
+
                     // set message metadata
+                    
                     msg.width = frame_width;
                     msg.height = frame_height;
                     msg.step = frame_width * frame_channels;
+                    ROS_INFO("test_width_height:  %d  %d" ,frame_width, frame_height);
                     
                     if (frame_channels==1)
                     {
@@ -799,8 +817,10 @@ void DavisRosDriver::readout()
                     }
                     else if (frame_channels==3)
                     {
-                      msg.encoding = "rgb8";
+                      
+                      // msg.encoding = "rgb8";
                     }
+                    msg.encoding = "mono8";
                     
                     // set message data
                     for (int img_y=0; img_y<frame_height*frame_channels; img_y++)
@@ -816,7 +836,7 @@ void DavisRosDriver::readout()
                     msg.header.stamp = reset_time_ +
                             ros::Duration().fromNSec(caerFrameEventGetTimestamp64(event, frame) * 1000);
 
-                    image_pub_.publish(msg);
+                    image_pub_.publish(msg);  //发布图像
 
                     // publish image exposure
                     const int32_t exposure_time_microseconds = caerFrameEventGetExposureLength(event);
