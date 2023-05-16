@@ -13,8 +13,8 @@
 
 - [Tested SLAM algorithms](#Tested-SLAM-algorithms)
   - [1. Ultimate SLAM](#1-Ultimate-SLAM)
-  - [2. VINS_Mono](#2-VINS-Mono)
-  - [3. ORB_SLAM3](#3-ORB-SLAM3)
+  - [2. VINS_Mono](#2-VINS_Mono)
+  - [3. ORB_SLAM3](#3-ORB_SLAM3)
 - [Tested detection algorithms](#Tested-detection-algorithms)
   - [1. arc_star_ros](#1-arc_star_ros)
 
