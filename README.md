@@ -11,12 +11,12 @@
 
 #### I have tested the following algorithms up to now.
 
-- [Tested SLAM algorithms](##Tested SLAM algorithms)
-  - [Ultimate SLAM](#1. [Ultimate SLAM](https://github.com/uzh-rpg/rpg_ultimate_slam_open))
-  - [VINS_Mono](# 2. [VINS_Mono](https://github.com/HKUST-Aerial-Robotics/VINS-Mono))
-  - [ORB_SLAM3](# 3. [ORB_SLAM3](https://github.com/UZ-SLAMLab/ORB_SLAM3))
-- [Tested detection algorithms](##Tested detection algorithms)
-  - [arc_star_ros](# 1. arc_star_ros)
+- [Tested SLAM algorithms](#Tested SLAM algorithms)
+  - [Ultimate SLAM](#1. Ultimate SLAM)
+  - [VINS_Mono](#2. VINS_Mono)
+  - [ORB_SLAM3](#3. ORB_SLAM3)
+- [Tested detection algorithms](#Tested detection algorithms)
+  - [arc_star_ros](#1. arc_star_ros)
 
 ## Tested SLAM algorithms
 
