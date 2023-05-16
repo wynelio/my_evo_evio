@@ -40,11 +40,11 @@
 
   ![](image/ultimate_slam_issue1.png)
 
-### 2. [VINS_Mono](https://github.com/HKUST-Aerial-Robotics/VINS-Mono)
+### 2. [VINS-Mono](https://github.com/HKUST-Aerial-Robotics/VINS-Mono)
 
 ![](image/VINS_324_1.png)
 
-### 3. [ORB_SLAM3](https://github.com/UZ-SLAMLab/ORB_SLAM3)
+### 3. [ORB-SLAM3](https://github.com/UZ-SLAMLab/ORB_SLAM3)
 
 #### (Not yet tested with Davis346)
 
